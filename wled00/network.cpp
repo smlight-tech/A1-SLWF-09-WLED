@@ -185,6 +185,8 @@ static_assert((sizeof(ethernetBoards)/sizeof(ethernetBoards[0])) == WLED_NUM_ETH
 // ToDO: add P4 specific ethernet options
 #error "Ethernet is not yet supported on your ESP32-P4".
 
+#elif CONFIG_IDF_TARGET_ESP32S3
+// W5500
 #else
 #error "Ethernet is not yet supported on your MCU".
 #endif
@@ -208,7 +210,7 @@ bool initEthernet()
     DEBUG_PRINTF_P(PSTR("initE: Ignoring attempt for invalid ethernetType (%d)\n"), ethernetType);
     return false;
   }
-
+#ifdef CONFIG_ETH_USE_ESP32_EMAC
   DEBUG_PRINTF_P(PSTR("initE: Attempting ETH config: %d\n"), ethernetType);
 
   // Ethernet initialization should only succeed once -- else reboot required
@@ -293,6 +295,20 @@ bool initEthernet()
     }
     return false;
   }
+#else
+  managed_pin_type pinsToAllocate[6] = {{W5500_SPI_SCK, 1}, {W5500_SPI_MISO, 0}, {W5500_SPI_MOSI, 1}, {W5500_PHY_CS, 1}, {W5500_PHY_IRQ, 0}, {W5500_PHY_RST, 1}};
+
+  //SPI.begin(W5500_SPI_SCK, W5500_SPI_MISO, W5500_SPI_MOSI);
+  if (!ETH.begin(ETH_PHY_W5500, 0, W5500_PHY_CS, W5500_PHY_IRQ, W5500_PHY_RST, SPI1_HOST, W5500_SPI_SCK, W5500_SPI_MISO, W5500_SPI_MOSI)) {
+    DEBUG_PRINTLN(F("initC: ETH.begin() failed"));
+    // de-allocate the allocated pins
+    for (managed_pin_type mpt : pinsToAllocate) {
+        PinManager::deallocatePin(mpt.pin, PinOwner::Ethernet);
+    }
+
+    return false;
+}
+#endif
 
   // https://github.com/wled/WLED/issues/5247
   if (multiWiFi[0].staticIP != (uint32_t)0x00000000 && multiWiFi[0].staticGW != (uint32_t)0x00000000) {

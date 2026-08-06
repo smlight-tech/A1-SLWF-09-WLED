@@ -132,6 +132,7 @@ static void appendGPIOinfo(Print& settingsScript)
   firstPin = false;
   #endif
   #if defined(ARDUINO_ARCH_ESP32) && defined(WLED_USE_ETHERNET)
+  #ifdef CONFIG_ETH_USE_ESP32_EMAC
   if (ethernetType != WLED_ETH_NONE && ethernetType < WLED_NUM_ETH_TYPES) {
     if (!firstPin) settingsScript.print(',');
     for (unsigned p=0; p<WLED_ETH_RSVD_PINS_COUNT; p++) { settingsScript.printf("%d,",esp32_nonconfigurable_ethernet_pins[p].pin); }
@@ -151,6 +152,7 @@ static void appendGPIOinfo(Print& settingsScript)
         break;
     }
   }
+  #endif
   #endif
   settingsScript.print(F("];")); // rsvd
 

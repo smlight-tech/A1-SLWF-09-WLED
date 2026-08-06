@@ -1,5 +1,7 @@
 #ifndef WLED_ETHERNET_H
 #define WLED_ETHERNET_H
+#include <stdint.h>
+#include <ETH.h>
 
 #include "pin_manager.h"
 
@@ -23,7 +25,7 @@ typedef struct EthernetSettings {
   int            eth_mdc;
   int            eth_mdio;
   eth_phy_type_t eth_type;
-  eth_clock_mode_t eth_clk_mode;
+  uint8_t eth_clk_mode;
 } ethernet_settings;
 
 extern const ethernet_settings ethernetBoards[];

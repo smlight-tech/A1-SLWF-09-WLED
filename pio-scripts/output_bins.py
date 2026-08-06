@@ -65,4 +65,52 @@ def bin_gzip(source, target):
         with gzip.open(target, "wb", compresslevel = 9) as f:
             shutil.copyfileobj(fp, f)
 
+def merge_bin(source, target, env):
+    # build a single full-flash image (bootloader + partitions + boot_app0 + app)
+    # that can be flashed at offset 0x0 with esptool / web flasher. esp32 only.
+    if env["PIOPLATFORM"] != "espressif32":
+        return
+
+    _create_dirs()
+    variant = env["PIOENV"]
+    release_name_def = _get_cpp_define_value(env, "WLED_RELEASE_NAME")
+    version = _get_cpp_define_value(env, "WLED_VERSION")
+
+    if release_name_def:
+        release_name = release_name_def.replace("\\\"", "")
+        with open("package.json", "r") as package:
+            version = json.load(package)["version"]        
+            full_file = os.path.join(OUTPUT_DIR, "release", f"WLED_{version}_{release_name}_full.bin")
+    else:
+        full_file = os.path.join(OUTPUT_DIR, "firmware", f"{variant}_full.bin")
+
+    board = env.BoardConfig()
+    mcu = board.get("build.mcu", "esp32")
+    flash_size = board.get("upload.flash_size", "4MB")
+    flash_mode = "dio"
+    # build.f_flash like "80000000L" -> "80m"
+    f_flash = str(board.get("build.f_flash", "40000000L"))
+    flash_freq = f_flash.replace("000000L", "m").replace("000000", "m").replace("L", "")
+
+    # bootloader + partitions (+ boot_app0) with their offsets, as PlatformIO computed them
+    images = []
+    for offset, image in env["FLASH_EXTRA_IMAGES"]:
+        images += [str(offset), env.subst(image)]
+    # the application image goes at the app offset
+    images += [env.subst("$ESP32_APP_OFFSET"), str(target[0])]
+
+    cmd = [
+        "$PYTHONEXE", "$OBJCOPY",
+        "--chip", mcu, "merge-bin",
+        "-o", full_file,
+        "--flash-mode", flash_mode,
+        "--flash-freq", flash_freq,
+        "--flash-size", flash_size,
+    ] + images
+
+    print(f"Building full flash image {full_file}")
+    env.Execute(env.VerboseAction(env.subst(" ".join(cmd)),
+                                  f"Merging full flash image {full_file}"))
+
 env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", bin_rename_copy)
+env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", merge_bin)
