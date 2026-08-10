@@ -176,6 +176,9 @@ const ethernet_settings ethernetBoards[] = {
     ETH_PHY_LAN8720,     // eth_type
     ETH_CLOCK_GPIO0_IN   // eth_clk_mode
   },
+  {
+    // dummy for SLWF-09U
+  },
 };
 
 // sanity checks for ethernet config table and WLED_ETH_DEFAULT
