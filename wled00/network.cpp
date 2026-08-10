@@ -297,6 +297,10 @@ bool initEthernet()
   }
 #else
   managed_pin_type pinsToAllocate[6] = {{W5500_SPI_SCK, 1}, {W5500_SPI_MISO, 0}, {W5500_SPI_MOSI, 1}, {W5500_PHY_CS, 1}, {W5500_PHY_IRQ, 0}, {W5500_PHY_RST, 1}};
+  if (!PinManager::allocateMultiplePins(pinsToAllocate, (sizeof(pinsToAllocate) / sizeof(managed_pin_type)), PinOwner::Ethernet)) {
+    DEBUG_PRINTLN(F("initE: Failed to allocate ethernet pins "));
+    return false;
+  }
 
   //SPI.begin(W5500_SPI_SCK, W5500_SPI_MISO, W5500_SPI_MOSI);
   if (!ETH.begin(ETH_PHY_W5500, 0, W5500_PHY_CS, W5500_PHY_IRQ, W5500_PHY_RST, SPI2_HOST, W5500_SPI_SCK, W5500_SPI_MISO, W5500_SPI_MOSI)) {
