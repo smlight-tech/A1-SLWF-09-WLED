@@ -101,11 +101,11 @@ def merge_bin(source, target, env):
 
     cmd = [
         "$PYTHONEXE", "$OBJCOPY",
-        "--chip", mcu, "merge-bin",
+        "--chip", mcu, "merge_bin",
         "-o", full_file,
-        "--flash-mode", flash_mode,
-        "--flash-freq", flash_freq,
-        "--flash-size", flash_size,
+        "--flash_mode", flash_mode,
+        "--flash_freq", flash_freq,
+        "--flash_size", flash_size,
     ] + images
 
     print(f"Building full flash image {full_file}")
