@@ -299,8 +299,8 @@ bool initEthernet()
   managed_pin_type pinsToAllocate[6] = {{W5500_SPI_SCK, 1}, {W5500_SPI_MISO, 0}, {W5500_SPI_MOSI, 1}, {W5500_PHY_CS, 1}, {W5500_PHY_IRQ, 0}, {W5500_PHY_RST, 1}};
 
   //SPI.begin(W5500_SPI_SCK, W5500_SPI_MISO, W5500_SPI_MOSI);
-  if (!ETH.begin(ETH_PHY_W5500, 0, W5500_PHY_CS, W5500_PHY_IRQ, W5500_PHY_RST, SPI1_HOST, W5500_SPI_SCK, W5500_SPI_MISO, W5500_SPI_MOSI)) {
-    DEBUG_PRINTLN(F("initC: ETH.begin() failed"));
+  if (!ETH.begin(ETH_PHY_W5500, 0, W5500_PHY_CS, W5500_PHY_IRQ, W5500_PHY_RST, SPI2_HOST, W5500_SPI_SCK, W5500_SPI_MISO, W5500_SPI_MOSI)) {
+    DEBUG_PRINTLN(F("initE: ETH.begin() failed"));
     // de-allocate the allocated pins
     for (managed_pin_type mpt : pinsToAllocate) {
         PinManager::deallocatePin(mpt.pin, PinOwner::Ethernet);
