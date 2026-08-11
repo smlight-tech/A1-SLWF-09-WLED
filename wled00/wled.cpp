@@ -535,7 +535,7 @@ void WLED::setup()
 #ifdef ETH_LED
   if (PinManager::allocatePin(ETH_LED, true, PinOwner::BusDigital)) {
     pinMode(ETH_LED, OUTPUT);
-    digitalWrite(ETH_LED, 1);
+    digitalWrite(ETH_LED, 0);
   }
 #endif
 
