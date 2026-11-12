@@ -12,6 +12,9 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_netif.h"
+#include "esp_rom_sys.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 // arduino-esp32 2.0.x, WiFiGeneric.cpp: what ETHClass::begin() calls too
 extern bool tcpipInit();
@@ -41,6 +44,39 @@ void release(W5500Parts& p) {
   if (p.netif) esp_netif_destroy(p.netif);
   if (p.spi)   spi_bus_remove_device(p.spi);
   if (p.bus)   spi_bus_free(p.host);
+}
+
+// VERSIONR (common register block, offset 0x39): 0x04 on every W5500
+uint8_t readVersion(spi_device_handle_t spi) {
+  spi_transaction_t t = {};
+  t.cmd = 0x0039;  // address phase: register offset
+  t.addr = 0x00;   // control phase: common block, read, variable data length
+  t.length = 8;
+  t.flags = SPI_TRANS_USE_RXDATA;
+  return spi_device_polling_transmit(spi, &t) == ESP_OK ? t.rx_data[0] : 0;
+}
+
+// The hardware reset is done here, not by the driver: IDF 4.4 (esp_eth_driver_install) holds RST low for 100 us and
+// initialises the MAC right after releasing it, while the W5500 needs >= 500 us low and about 1 ms for its PLL. The MAC
+// setup written meanwhile is lost (VERSIONR reads 0, socket 0 never opened): the link comes up, but every frame sent
+// fails and none is received - it only worked when something delayed the init (a log line). IDF 5 waits for VERSIONR.
+bool hardReset(spi_device_handle_t spi, int rst) {
+  if (rst >= 0) {
+    gpio_config_t io = {};
+    io.pin_bit_mask = 1ULL << rst;
+    io.mode = GPIO_MODE_OUTPUT;
+    gpio_config(&io);
+    gpio_set_level((gpio_num_t)rst, 0);
+    esp_rom_delay_us(1000);
+    gpio_set_level((gpio_num_t)rst, 1);
+  }
+  uint8_t v = 0;
+  for (int i = 0; i < 100; i++) {  // up to 1 s
+    if ((v = readVersion(spi)) == 0x04) return true;
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+  ESP_LOGE(TAG, "no answer after reset (VERSIONR 0x%02x)", v);
+  return false;
 }
 
 bool fail(W5500Parts& p, const char* step, esp_err_t err) {
@@ -82,6 +118,7 @@ bool w5500EthBegin(spi_host_device_t host, int sck, int miso, int mosi, int cs, 
   dev.spics_io_num = cs;
   dev.queue_size = 20;
   if ((err = spi_bus_add_device(host, &dev, &p.spi)) != ESP_OK) return fail(p, "spi_bus_add_device", err);
+  if (!hardReset(p.spi, rst)) return fail(p, "W5500 reset", ESP_ERR_TIMEOUT);
 
   eth_w5500_config_t w5500 = ETH_W5500_DEFAULT_CONFIG(p.spi);
   w5500.int_gpio_num = irq;
@@ -91,7 +128,7 @@ bool w5500EthBegin(spi_host_device_t host, int sck, int miso, int mosi, int cs, 
   if (!p.mac) return fail(p, "esp_eth_mac_new_w5500", ESP_FAIL);
 
   eth_phy_config_t phyCfg = ETH_PHY_DEFAULT_CONFIG();
-  phyCfg.reset_gpio_num = rst;
+  phyCfg.reset_gpio_num = -1;  // reset already done by hardReset() (the driver's own one is too short, see there)
   p.phy = esp_eth_phy_new_w5500(&phyCfg);
   if (!p.phy) return fail(p, "esp_eth_phy_new_w5500", ESP_FAIL);
 
