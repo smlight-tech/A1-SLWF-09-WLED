@@ -914,6 +914,7 @@ void serializeConfig(JsonObject root) {
 #endif
 
 #if defined(ARDUINO_ARCH_ESP32) && defined(WLED_USE_ETHERNET)
+#ifdef CONFIG_ETH_USE_ESP32_EMAC // W5500 (no EMAC): the type stays WLED_ETH_DEFAULT, the Wi-Fi page has no entry for it
   JsonObject ethernet = root.createNestedObject("eth");
   ethernet["type"] = ethernetType;
   if (ethernetType != WLED_ETH_NONE && ethernetType < WLED_NUM_ETH_TYPES) {
@@ -935,6 +936,7 @@ void serializeConfig(JsonObject root) {
         break;
     }
   }
+#endif
 #endif
 
   JsonObject hw = root.createNestedObject(F("hw"));

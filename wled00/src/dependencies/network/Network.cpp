@@ -1,4 +1,7 @@
 #include "Network.h"
+#if defined(ARDUINO_ARCH_ESP32) && defined(WLED_USE_ETHERNET) && !defined(CONFIG_ETH_USE_ESP32_EMAC)
+#include "w5500_idf4.h"
+#endif
 
 IPAddress NetworkClass::localIP()
 {
@@ -45,7 +48,10 @@ IPAddress NetworkClass::gatewayIP()
 
 void NetworkClass::localMAC(uint8_t* MAC)
 {
-#if defined(ARDUINO_ARCH_ESP32) && defined(WLED_USE_ETHERNET)
+#if defined(ARDUINO_ARCH_ESP32) && defined(WLED_USE_ETHERNET) && !defined(CONFIG_ETH_USE_ESP32_EMAC)
+  // W5500 (lib/W5500_IDF4): ETH has no driver handle of it, ETH.macAddress() would log an error and give zeros
+  if (w5500EthMacAddress(MAC)) return;
+#elif defined(ARDUINO_ARCH_ESP32) && defined(WLED_USE_ETHERNET)
   // ETH.macAddress(MAC); // Does not work because of missing ETHClass:: in ETH.ccp
 
   // Start work around

@@ -175,12 +175,27 @@ const ethernet_settings ethernetBoards[] = {
     ETH_PHY_LAN8720,     // eth_type
     ETH_CLOCK_GPIO0_IN   // eth_clk_mode
   },
+
+  // WLED_ETH_W5500_SLWF09 (16) - SMLIGHT A1-SLWF-09U: W5500 over SPI, pins from W5500_* build flags (not an EMAC board)
+  {
+  },
 };
 
 // sanity checks for ethernet config table and WLED_ETH_DEFAULT
 static_assert((sizeof(ethernetBoards)/sizeof(ethernetBoards[0])) == WLED_NUM_ETH_TYPES, "WLED_NUM_ETH_TYPES does not match size of ethernetBoards[] table.");
 #ifdef WLED_ETH_DEFAULT
   static_assert(((WLED_ETH_DEFAULT) >= WLED_ETH_NONE) && ((WLED_ETH_DEFAULT) < WLED_NUM_ETH_TYPES), "WLED_ETH_DEFAULT is out of range.");
+#endif
+
+#ifndef CONFIG_ETH_USE_ESP32_EMAC
+// no internal EMAC (ESP32-S3): W5500 over SPI, lib/W5500_IDF4
+#include "w5500_idf4.h"
+#if !defined(W5500_SPI_SCK) || !defined(W5500_SPI_MISO) || !defined(W5500_SPI_MOSI) || !defined(W5500_PHY_CS) || !defined(W5500_PHY_IRQ) || !defined(W5500_PHY_RST)
+#error "WLED_USE_ETHERNET without an internal EMAC needs the W5500 pins: W5500_SPI_SCK / _MISO / _MOSI, W5500_PHY_CS / _IRQ / _RST"
+#endif
+// SPI3: WLED's own hardware SPI (SPI object: HW SPI pins, 2-pin LED buses - bus_wrapper.h) is FSPI = SPI2;
+// the Arduino SPI HAL programs the peripheral directly, a shared bus would break both silently
+#define W5500_SPI_HOST SPI3_HOST
 #endif
 
 bool initEthernet()
@@ -201,6 +216,7 @@ bool initEthernet()
 
   DEBUG_PRINTF_P(PSTR("initE: Attempting ETH config: %d\n"), ethernetType);
 
+#ifdef CONFIG_ETH_USE_ESP32_EMAC
   // Ethernet initialization should only succeed once -- else reboot required
   ethernet_settings es = ethernetBoards[ethernetType];
   managed_pin_type pinsToAllocate[10] = {
@@ -272,9 +288,32 @@ bool initEthernet()
     }
     return false;
   }
+#else
+  managed_pin_type pinsToAllocate[6] = {
+    { W5500_SPI_SCK,  true  },
+    { W5500_SPI_MISO, false },
+    { W5500_SPI_MOSI, true  },
+    { W5500_PHY_CS,   true  },
+    { W5500_PHY_IRQ,  false },
+    { W5500_PHY_RST,  true  },
+  };
+  if (!PinManager::allocateMultiplePins(pinsToAllocate, 6, PinOwner::Ethernet)) {
+    DEBUG_PRINTLN(F("initE: Failed to allocate ethernet pins"));
+    return false;
+  }
+
+  if (!w5500EthBegin(W5500_SPI_HOST, W5500_SPI_SCK, W5500_SPI_MISO, W5500_SPI_MOSI, W5500_PHY_CS, W5500_PHY_IRQ, W5500_PHY_RST)) {
+    DEBUG_PRINTLN(F("initE: W5500 start failed"));
+    for (managed_pin_type mpt : pinsToAllocate) {
+      PinManager::deallocatePin(mpt.pin, PinOwner::Ethernet);
+    }
+    return false;
+  }
+#endif
 
   // https://github.com/wled/WLED/issues/5247
-  if (multiWiFi[0].staticIP != (uint32_t)0x00000000 && multiWiFi[0].staticGW != (uint32_t)0x00000000) {
+  // multiWiFi is still empty when the config load brings Ethernet up on a fresh device
+  if (!multiWiFi.empty() && multiWiFi[0].staticIP != (uint32_t)0x00000000 && multiWiFi[0].staticGW != (uint32_t)0x00000000) {
     ETH.config(multiWiFi[0].staticIP, multiWiFi[0].staticGW, multiWiFi[0].staticSN, dnsAddress);
   } else {
     ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);

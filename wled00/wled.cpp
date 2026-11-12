@@ -492,6 +492,20 @@ void WLED::setup()
   }
 #endif
 
+#ifdef SM_LED1
+  if (PinManager::allocatePin(SM_LED1, true, PinOwner::BusDigital)) {
+    pinMode(SM_LED1, OUTPUT);
+    digitalWrite(SM_LED1, 1);
+  }
+#endif
+
+#ifdef ETH_LED
+  if (PinManager::allocatePin(ETH_LED, true, PinOwner::BusDigital)) {
+    pinMode(ETH_LED, OUTPUT);
+    digitalWrite(ETH_LED, 0);
+  }
+#endif
+
   DEBUG_PRINTLN(F("Initializing strip"));
   beginStrip();
   DEBUG_PRINTF_P(PSTR("heap %u\n"), getFreeHeapSize());

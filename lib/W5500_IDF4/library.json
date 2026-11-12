@@ -1,0 +1,6 @@
+{
+  "name": "W5500_IDF4",
+  "description": "W5500 SPI Ethernet for arduino-esp32 2.0.x (ESP-IDF 4.4 driver), attached as the ETH netif",
+  "build": { "libArchive": false },
+  "platforms": ["espressif32"]
+}

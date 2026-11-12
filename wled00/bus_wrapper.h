@@ -304,7 +304,8 @@
 #endif
 
 //APA102
-#ifdef WLED_USE_ETHERNET
+// W5500 Ethernet (W5500_PHY_CS, lib/W5500_IDF4) takes SPI3 = HSPI of the ESP32-S3: the LEDs keep the SPI object (FSPI = SPI2)
+#if defined(WLED_USE_ETHERNET) && !defined(W5500_PHY_CS)
 // fix for #2542 (by @BlackBird77)
 #define B_HS_DOT_3 NeoPixelBus<DotStarBgrFeature, DotStarEsp32HspiHzMethod> //hardware HSPI (was DotStarEsp32DmaHspi5MhzMethod in NPB @ 2.6.9)
 #else
@@ -321,7 +322,7 @@
 #define B_SS_LPO_3 NeoPixelBus<Lpd6803GrbFeature, Lpd6803Method>
 
 //WS2801
-#ifdef WLED_USE_ETHERNET
+#if defined(WLED_USE_ETHERNET) && !defined(W5500_PHY_CS)  // see APA102
 #define B_HS_WS1_3 NeoPixelBus<NeoRbgFeature, Ws2801MethodBase<TwoWireHspiImple<SpiSpeedHz>>>
 #else
 #define B_HS_WS1_3 NeoPixelBus<NeoRbgFeature, Ws2801SpiHzMethod>
