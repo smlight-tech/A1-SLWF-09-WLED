@@ -311,6 +311,12 @@ bool initEthernet()
   }
 #endif
 
+  // The DHCP client starts as soon as the link is up, before ARDUINO_EVENT_ETH_CONNECTED reaches WLED (which sets the
+  // hostname again): without this the DHCP request carries the platform default (CONFIG_LWIP_LOCAL_HOSTNAME "tasmota")
+  char hostname[64] = {'\0'};
+  getWLEDhostname(hostname, sizeof(hostname), true);
+  ETH.setHostname(hostname);
+
   // https://github.com/wled/WLED/issues/5247
   // multiWiFi is still empty when the config load brings Ethernet up on a fresh device
   if (!multiWiFi.empty() && multiWiFi[0].staticIP != (uint32_t)0x00000000 && multiWiFi[0].staticGW != (uint32_t)0x00000000) {
